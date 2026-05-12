@@ -1,4 +1,5 @@
 ﻿using Healthcare.Api.BusinessService.Interface;
+using Healthcare.Api.Constants;
 using Healthcare.Api.Dto.Appointments;
 using Healthcare.Api.Dto.Common;
 using Microsoft.AspNetCore.Http;
@@ -26,6 +27,7 @@ namespace Healthcare.Api.Controllers
                 ResponseDto errorResponse = new ResponseDto
                 {
                     IsSuccess = false,
+                    Message = AppConstants.DURATION_CASE
                 };
                 return Ok(errorResponse);
             }
@@ -40,13 +42,13 @@ namespace Healthcare.Api.Controllers
         {
             if (request.Duration != 15 && request.Duration != 30 && request.Duration != 60)
             {
-                ResponseDto errorResponse = new ResponseDto { IsSuccess = false, Message = "Durasi harus 15, 30, atau 60 menit." };
+                ResponseDto errorResponse = new ResponseDto { IsSuccess = false, Message = AppConstants.DURATION_CASE };
                 return BadRequest(errorResponse);
             }
 
             if (request.Start.Minute % 5 != 0)
             {
-                ResponseDto errorResponse = new ResponseDto { IsSuccess = false, Message = "Waktu mulai harus kelipatan 5 menit." };
+                ResponseDto errorResponse = new ResponseDto { IsSuccess = false, Message = AppConstants.MULTIPLE_CASE };
                 return BadRequest(errorResponse); 
             }
 
@@ -54,7 +56,7 @@ namespace Healthcare.Api.Controllers
 
             if (!result.IsSuccess)
             {
-                if (result.Message.Contains("Overlap") || result.Message.Contains("terisi"))
+                if (result.Message == AppConstants.CONFLICT_MESSAGE)
                 {
                     return Conflict(result);
                 }

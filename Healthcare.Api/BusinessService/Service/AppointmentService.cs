@@ -1,4 +1,5 @@
 ﻿using Healthcare.Api.BusinessService.Interface;
+using Healthcare.Api.Constants;
 using Healthcare.Api.DatabaseContext;
 using Healthcare.Api.Dto.Appointments;
 using Healthcare.Api.Dto.Common;
@@ -71,7 +72,7 @@ namespace Healthcare.Api.BusinessService.Service
                 return new ResponseDto
                 {
                     IsSuccess = false,
-                    Message = "Dokter tidak praktek di hari ini."
+                    Message = AppConstants.NO_PRACTICE
                 };
             }
 
@@ -97,7 +98,7 @@ namespace Healthcare.Api.BusinessService.Service
 
             if (schedule == null || startUtc.TimeOfDay < schedule.StartTime || endUtc.TimeOfDay > schedule.EndTime)
             {
-                return new ResponseDto { IsSuccess = false, Message = "Di luar jam kerja dokter." };
+                return new ResponseDto { IsSuccess = false, Message = AppConstants.OUTSIDE_WORKING_HOURS };
             }
 
             bool isOverlap = await _context.Appointments.AnyAsync(a =>
@@ -108,7 +109,7 @@ namespace Healthcare.Api.BusinessService.Service
 
             if (isOverlap)
             {
-                return new ResponseDto { IsSuccess = false, Message = "Slot sudah terisi (Overlap)." };
+                return new ResponseDto { IsSuccess = false, Message = AppConstants.CONFLICT_MESSAGE };
             }
 
             return new ResponseDto { IsSuccess = true };
@@ -141,16 +142,20 @@ namespace Healthcare.Api.BusinessService.Service
 
                     await transaction.CommitAsync();
 
-                    responseDto.Message = "Booking berhasil dibuat.";
+                    responseDto.Message = AppConstants.BOOKING_INSERT_SUCCESS;
                     responseDto.Data = appointment;
                 }
 
                 return responseDto;
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException ex)
             {
                 await transaction.RollbackAsync();
-                return new ResponseDto { IsSuccess = false, Message = "Gagal. Slot baru saja terisi oleh pasien lain." };
+                if (ex.InnerException?.Message.Contains("UNIQUE") == true || ex.InnerException?.Message.Contains("duplicate") == true)
+                {
+                    return new ResponseDto { IsSuccess = false, Message = AppConstants.SLOT_ALREADY_TAKEN };
+                }
+                return new ResponseDto { IsSuccess = false, Message = AppConstants.BOOKING_INSERT_FAILED };
             }
         }
         public async Task<ResponseDto> CancelAppointmentAsync(int id)
@@ -158,17 +163,17 @@ namespace Healthcare.Api.BusinessService.Service
             Appointment? appt = await _context.Appointments.FindAsync(id);
             if (appt == null)
             {
-                return new ResponseDto { IsSuccess = false, Message = "Appointment tidak ditemukan." };
+                return new ResponseDto { IsSuccess = false, Message = AppConstants.APPOINTMENT_NOT_FOUND };
             }
 
             if (appt.StartTime - DateTimeOffset.UtcNow < TimeSpan.FromHours(2))
             {
-                return new ResponseDto { IsSuccess = false, Message = "Tidak bisa membatalkan dalam waktu kurang dari 2 jam." };
+                return new ResponseDto { IsSuccess = false, Message = AppConstants.CANNOT_CANCEL_WITH_LESS_THAN_2_HOURS };
             }
 
             _context.Appointments.Remove(appt);
             await _context.SaveChangesAsync();
-            return new ResponseDto { Message = "Appointment berhasil dibatalkan.",IsSuccess = true,Data = appt };
+            return new ResponseDto { Message = AppConstants.APPOINTMENT_INSERT_SUCCESS, IsSuccess = true,Data = appt };
         }
     }
 }

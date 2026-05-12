@@ -4,6 +4,7 @@ using Healthcare.Api.Dto.Appointments;
 using Healthcare.Api.Dto.Common;
 using Healthcare.Api.Model;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Xunit;
 
@@ -15,6 +16,7 @@ public class AppointmentServiceTests
     {
         DbContextOptions<AppDbContext> options = new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .ConfigureWarnings(x => x.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
         return new AppDbContext(options);
     }
@@ -27,12 +29,8 @@ public class AppointmentServiceTests
         return new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
     }
 
-    [Fact]
-    public async Task GetAvailability_ShouldReturn6Slots_OnMonday()
+    private async Task Seeder(AppDbContext context)
     {
-        AppDbContext context = GetDbContext();
-        AppointmentService service = new AppointmentService(context, GetConfig());
-
         context.DoctorSchedules.Add(new DoctorSchedule
         {
             DoctorId = 1,
@@ -41,6 +39,15 @@ public class AppointmentServiceTests
             EndTime = new TimeSpan(12, 0, 0)
         });
         await context.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task GetAvailability_ShouldReturn6Slots_OnMonday()
+    {
+        AppDbContext context = GetDbContext();
+        AppointmentService service = new AppointmentService(context, GetConfig());
+
+        await Seeder(context);
 
         ResponseDto result = await service.GetAvailabilityAsync(1, DateTime.Parse("2026-05-11"), 30);
         List<string> slots = (List<string>)result.Data!;
@@ -170,23 +177,28 @@ public class AppointmentServiceTests
     {
         AppDbContext context = GetDbContext();
         AppointmentService service = new AppointmentService(context, GetConfig());
+        await Seeder(context);
 
-        CreateAppointmentRequestDto req1 = new CreateAppointmentRequestDto
+        CreateAppointmentRequestDto request = new CreateAppointmentRequestDto
         {
             DoctorId = 1,
-            Start = DateTimeOffset.Parse("2026-05-11T10:30:00Z"),
-            Duration = 30
-        };
-        CreateAppointmentRequestDto req2 = new CreateAppointmentRequestDto
-        {
-            DoctorId = 1,
-            Start = DateTimeOffset.Parse("2026-05-11T10:30:00Z"),
-            Duration = 30
+            PatientId = 1,
+            Duration = 30,
+            Start = DateTimeOffset.Parse("2026-05-11T10:30:00Z")
         };
 
-        await service.CreateAppointmentAsync(req1);
-        ResponseDto result2 = await service.CreateAppointmentAsync(req2);
+        IEnumerable<Task<ResponseDto>> tasks = Enumerable.Range(0, 20)
+            .Select(_ => service.CreateAppointmentAsync(request));
 
-        Assert.False(result2.IsSuccess); // Test Case 7
+        ResponseDto[] results = await Task.WhenAll(tasks);
+
+        int sukses = results.Count(r => r.IsSuccess);
+        int gagal = results.Count(r => !r.IsSuccess);
+
+        Assert.Equal(1, sukses);
+        Assert.Equal(19, gagal);
+        Assert.Equal(1, await context.Appointments.CountAsync()); 
+        // Test Case 7
     }
+
 }

@@ -65,9 +65,7 @@ namespace Healthcare.Api.BusinessService.Service
 
         public async Task<ResponseDto> GetAvailabilityAsync(int doctorId, DateTime date, int slot)
         {
-            
             bool isPractice = CheckingPraktekRule(date);
-
             if (!isPractice)
             {
                 return new ResponseDto
@@ -104,8 +102,8 @@ namespace Healthcare.Api.BusinessService.Service
 
             bool isOverlap = await _context.Appointments.AnyAsync(a =>
                 a.DoctorId == request.DoctorId &&
-                startUtc < a.EndTime &&    // Start baru lebih kecil dari End lama
-                endUtc > a.StartTime       // End baru lebih besar dari Start lama
+                startUtc < a.EndTime &&
+                endUtc > a.StartTime
             );
 
             if (isOverlap)
@@ -122,11 +120,13 @@ namespace Healthcare.Api.BusinessService.Service
         {
             DateTimeOffset startUtc = request.Start.ToUniversalTime();
             DateTimeOffset endUtc = startUtc.AddMinutes(request.Duration);
-            ResponseDto responseDto = await ValidateCreateAppointmentAsync(request,startUtc, endUtc);
+            using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
 
-            if (responseDto.IsSuccess)
+            try
             {
-                try
+                ResponseDto responseDto = await ValidateCreateAppointmentAsync(request, startUtc, endUtc);
+
+                if (responseDto.IsSuccess)
                 {
                     Appointment appointment = new Appointment
                     {
@@ -138,16 +138,20 @@ namespace Healthcare.Api.BusinessService.Service
 
                     _context.Appointments.Add(appointment);
                     await _context.SaveChangesAsync();
+
+                    await transaction.CommitAsync();
+
                     responseDto.Message = "Booking berhasil dibuat.";
                     responseDto.Data = appointment;
                 }
-                catch (DbUpdateException)
-                {
-                    responseDto.IsSuccess = false;
-                    responseDto.Message = "Gagal melakukan booking. Slot baru saja terisi oleh pasien lain.";
-                }
+
+                return responseDto;
             }
-            return responseDto;
+            catch (DbUpdateException)
+            {
+                await transaction.RollbackAsync();
+                return new ResponseDto { IsSuccess = false, Message = "Gagal. Slot baru saja terisi oleh pasien lain." };
+            }
         }
         public async Task<ResponseDto> CancelAppointmentAsync(int id)
         {

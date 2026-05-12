@@ -26,7 +26,6 @@ namespace Healthcare.Api.Controllers
                 ResponseDto errorResponse = new ResponseDto
                 {
                     IsSuccess = false,
-                    
                 };
                 return Ok(errorResponse);
             }
@@ -39,14 +38,12 @@ namespace Healthcare.Api.Controllers
         [HttpPost]
         public async Task<IActionResult> Create(CreateAppointmentRequestDto request)
         {
-            // Validasi slot (15/30/60)
             if (request.Duration != 15 && request.Duration != 30 && request.Duration != 60)
             {
                 ResponseDto errorResponse = new ResponseDto { IsSuccess = false, Message = "Durasi harus 15, 30, atau 60 menit." };
                 return BadRequest(errorResponse);
             }
 
-            // Validasi rounding kelipatan 5 menit
             if (request.Start.Minute % 5 != 0)
             {
                 ResponseDto errorResponse = new ResponseDto { IsSuccess = false, Message = "Waktu mulai harus kelipatan 5 menit." };
@@ -59,13 +56,13 @@ namespace Healthcare.Api.Controllers
             {
                 if (result.Message.Contains("Overlap") || result.Message.Contains("terisi"))
                 {
-                    return Conflict(result); // HTTP 409
+                    return Conflict(result);
                 }
 
-                return BadRequest(result); // HTTP 400
+                return BadRequest(result);
             }
 
-            return Ok(result); // HTTP 200 (Test Case 2)
+            return Ok(result);
         }
 
         [HttpDelete("{id}")]

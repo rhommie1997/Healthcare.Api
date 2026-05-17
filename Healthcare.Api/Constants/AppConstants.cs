@@ -4,7 +4,7 @@
     {
         //Error Messages
         public const string CONFLICT_MESSAGE = "Slot sudah terisi (Overlap).";
-        public const string OUTSIDE_WORKING_HOURS = "Dokter tidak praktek di hari ini.";
+        public const string OUTSIDE_WORKING_HOURS = "Waktu pemesanan berada di luar jam kerja dokter.";
         public const string NO_PRACTICE = "Dokter tidak praktek di hari ini.";
         public const string SLOT_ALREADY_TAKEN = "Gagal. Slot baru saja terisi oleh pasien lain.";
         public const string APPOINTMENT_NOT_FOUND = "Appointment tidak ditemukan.";
@@ -15,7 +15,7 @@
         //Messages
         public const string BOOKING_INSERT_SUCCESS = "Booking berhasil dibuat.";
         public const string BOOKING_INSERT_FAILED = "Booking gagal dibuat.";
-        public const string APPOINTMENT_INSERT_SUCCESS = "Appointment berhasil dibatalkan.";
+        public const string APPOINTMENT_DELETE_SUCCESS = "Appointment berhasil dibatalkan.";
 
     }
 }

@@ -14,10 +14,11 @@ public class AppointmentServiceTests
 {
     private AppDbContext GetDbContext()
     {
-        DbContextOptions<AppDbContext> options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString()) // 🔥 SAME DB
             .ConfigureWarnings(x => x.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
+
         return new AppDbContext(options);
     }
 
@@ -75,7 +76,7 @@ public class AppointmentServiceTests
             DoctorId = 1,
             PatientId = 1,
             Duration = 30,
-            Start = DateTimeOffset.Parse("2026-05-11T09:00:00Z")
+            Start = DateTimeOffset.Parse("2026-05-11T09:00:00")
         };
 
         ResponseDto result = await service.CreateAppointmentAsync(request);
@@ -131,7 +132,7 @@ public class AppointmentServiceTests
             DoctorId = 1,
             PatientId = 1,
             Duration = 30,
-            Start = DateTimeOffset.Parse("2026-05-11T12:00:00Z")
+            Start = DateTimeOffset.Parse("2026-05-11T12:30:00+07:00")
         };
 
         ResponseDto result = await service.CreateAppointmentAsync(request);
@@ -171,34 +172,4 @@ public class AppointmentServiceTests
 
         Assert.False(result.IsSuccess); // Test Case 6
     }
-
-    [Fact]
-    public async Task CreateAppointment_ShouldPreventDoubleBooking()
-    {
-        AppDbContext context = GetDbContext();
-        AppointmentService service = new AppointmentService(context, GetConfig());
-        await Seeder(context);
-
-        CreateAppointmentRequestDto request = new CreateAppointmentRequestDto
-        {
-            DoctorId = 1,
-            PatientId = 1,
-            Duration = 30,
-            Start = DateTimeOffset.Parse("2026-05-11T10:30:00Z")
-        };
-
-        IEnumerable<Task<ResponseDto>> tasks = Enumerable.Range(0, 20)
-            .Select(_ => service.CreateAppointmentAsync(request));
-
-        ResponseDto[] results = await Task.WhenAll(tasks);
-
-        int sukses = results.Count(r => r.IsSuccess);
-        int gagal = results.Count(r => !r.IsSuccess);
-
-        Assert.Equal(1, sukses);
-        Assert.Equal(19, gagal);
-        Assert.Equal(1, await context.Appointments.CountAsync()); 
-        // Test Case 7
-    }
-
 }

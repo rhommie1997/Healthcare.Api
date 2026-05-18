@@ -10,16 +10,19 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Xunit;
 
 namespace Healthcare.Api.Tests
 {
     public class AppointmentServiceConcTests
     {
-        private static readonly string _dbName = Guid.NewGuid().ToString();
+        // Gunakan properti unik per instance test agar database selalu bersih
+        private readonly string _dbName = Guid.NewGuid().ToString();
+
         private AppDbContext GetDbContext()
         {
             var options = new DbContextOptionsBuilder<AppDbContext>()
-                .UseInMemoryDatabase(_dbName) 
+                .UseInMemoryDatabase(_dbName)
                 .ConfigureWarnings(x => x.Ignore(InMemoryEventId.TransactionIgnoredWarning))
                 .Options;
 
@@ -28,9 +31,9 @@ namespace Healthcare.Api.Tests
 
         private IConfiguration GetConfig()
         {
-            Dictionary<string, string> settings = new Dictionary<string, string> {
-            {"DoctorSettings:WorkingRRule", "FREQ=WEEKLY;BYDAY=MO,WE,FR"}
-        };
+            var settings = new Dictionary<string, string> {
+                {"DoctorSettings:WorkingRRule", "FREQ=WEEKLY;BYDAY=MO,WE,FR"}
+            };
             return new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
         }
 
@@ -62,14 +65,16 @@ namespace Healthcare.Api.Tests
                 Start = DateTimeOffset.Parse("2026-05-11T10:30:00+07:00")
             };
 
+            //
             var tasks = Enumerable.Range(0, 20)
-                .Select(async _ =>
+                .Select(_ => Task.Run(async () =>
                 {
-                    using var context = GetDbContext(); // 🔥 penting
+                    using var context = GetDbContext();
                     var service = new AppointmentService(context, GetConfig());
 
                     return await service.CreateAppointmentAsync(request);
-                });
+                }))
+                .ToList();
 
             var results = await Task.WhenAll(tasks);
 
@@ -81,7 +86,8 @@ namespace Healthcare.Api.Tests
 
             using (var verifyContext = GetDbContext())
             {
-                Assert.Equal(1, await verifyContext.Appointments.CountAsync());
+                int totalAppointmentDiDatabase = await verifyContext.Appointments.CountAsync();
+                Assert.Equal(1, totalAppointmentDiDatabase);
             }
         }
     }

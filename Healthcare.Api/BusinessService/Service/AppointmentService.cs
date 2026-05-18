@@ -17,6 +17,7 @@ namespace Healthcare.Api.BusinessService.Service
     {
         private readonly AppDbContext _context;
         private readonly string _rrulePattern;
+        private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 
         public AppointmentService(AppDbContext context, IConfiguration configuration)
         {
@@ -119,7 +120,6 @@ namespace Healthcare.Api.BusinessService.Service
                 };
             }
 
-            // ✅ FIX 1: pakai TimeOfDay dari startLocal
             TimeSpan localStart = startLocal.TimeOfDay;
             TimeSpan localEnd = endLocal.TimeOfDay;
 
@@ -132,7 +132,6 @@ namespace Healthcare.Api.BusinessService.Service
                 };
             }
 
-            // ✅ FIX 2: pakai END TIME REAL (bukan 30 menit hardcoded)
             bool isOverlap = await _context.Appointments.AnyAsync(a =>
                 a.DoctorId == request.DoctorId &&
                 startLocal < a.EndTime &&
@@ -158,51 +157,58 @@ namespace Healthcare.Api.BusinessService.Service
             DateTimeOffset startLocal = request.Start.ToLocalTime();
             DateTimeOffset endLocal = startLocal.AddMinutes(request.Duration);
 
-            await using var transaction =
-                await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+            await _semaphore.WaitAsync();
 
             try
             {
-                // 🔥 STEP 1: VALIDASI (PAKE METHOD KAMU)
-                ResponseDto validationResult =
-                    await ValidateCreateAppointmentAsync(request, startLocal, endLocal);
+                await using var transaction =
+                    await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
 
-                if (!validationResult.IsSuccess)
+                try
+                {
+                    ResponseDto validationResult =
+                        await ValidateCreateAppointmentAsync(request, startLocal, endLocal);
+
+                    if (!validationResult.IsSuccess)
+                    {
+                        await transaction.RollbackAsync();
+                        return validationResult;
+                    }
+
+                    Appointment appointment = new Appointment
+                    {
+                        DoctorId = request.DoctorId,
+                        PatientId = request.PatientId,
+                        StartTime = startLocal,
+                        EndTime = endLocal
+                    };
+
+                    _context.Appointments.Add(appointment);
+                    await _context.SaveChangesAsync();
+
+                    await transaction.CommitAsync();
+
+                    return new ResponseDto
+                    {
+                        IsSuccess = true,
+                        Message = AppConstants.BOOKING_INSERT_SUCCESS,
+                        Data = appointment
+                    };
+                }
+                catch (Exception)
                 {
                     await transaction.RollbackAsync();
-                    return validationResult;
+
+                    return new ResponseDto
+                    {
+                        IsSuccess = false,
+                        Message = AppConstants.BOOKING_INSERT_FAILED
+                    };
                 }
-
-                // 🔥 STEP 2: INSERT
-                Appointment appointment = new Appointment
-                {
-                    DoctorId = request.DoctorId,
-                    PatientId = request.PatientId,
-                    StartTime = startLocal,
-                    EndTime = endLocal
-                };
-
-                _context.Appointments.Add(appointment);
-                await _context.SaveChangesAsync();
-
-                await transaction.CommitAsync();
-
-                return new ResponseDto
-                {
-                    IsSuccess = true,
-                    Message = AppConstants.BOOKING_INSERT_SUCCESS,
-                    Data = appointment
-                };
             }
-            catch (Exception)
+            finally
             {
-                await transaction.RollbackAsync();
-
-                return new ResponseDto
-                {
-                    IsSuccess = false,
-                    Message = AppConstants.BOOKING_INSERT_FAILED
-                };
+                _semaphore.Release();
             }
         }
         public async Task<ResponseDto> CancelAppointmentAsync(int id)

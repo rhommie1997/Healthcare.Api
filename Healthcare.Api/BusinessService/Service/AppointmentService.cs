@@ -80,7 +80,7 @@ namespace Healthcare.Api.BusinessService.Service
             }
 
             DoctorSchedule? schedule = await _context.DoctorSchedules
-            .FirstOrDefaultAsync(s => s.DoctorId == doctorId && s.DayOfWeek == date.DayOfWeek);
+            .FirstOrDefaultAsync(s => s.DoctorId == doctorId);
 
             //if (schedule == null)
             //    return new ResponseDto { IsSuccess = false, Message = "Dokter tidak praktek di hari ini." };

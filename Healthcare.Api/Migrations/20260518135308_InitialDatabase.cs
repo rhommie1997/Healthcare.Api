@@ -35,8 +35,8 @@ namespace Healthcare.Api.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     DoctorId = table.Column<int>(type: "int", nullable: false),
                     PatientId = table.Column<int>(type: "int", nullable: false),
-                    StartTime = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
-                    EndTime = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    StartTime = table.Column<DateTimeOffset>(type: "datetimeoffset(0)", precision: 0, nullable: false),
+                    EndTime = table.Column<DateTimeOffset>(type: "datetimeoffset(0)", precision: 0, nullable: false),
                     CreatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false)
                 },
                 constraints: table =>
@@ -57,7 +57,7 @@ namespace Healthcare.Api.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     DoctorId = table.Column<int>(type: "int", nullable: false),
-                    DayOfWeek = table.Column<int>(type: "int", nullable: false),
+                    RRulePattern = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     StartTime = table.Column<TimeSpan>(type: "time", nullable: false),
                     EndTime = table.Column<TimeSpan>(type: "time", nullable: false)
                 },
@@ -75,16 +75,19 @@ namespace Healthcare.Api.Migrations
             migrationBuilder.InsertData(
                 table: "Doctors",
                 columns: new[] { "Id", "Name", "Specialty" },
-                values: new object[] { 1, "dr. Smith", "General Practitioner" });
+                values: new object[,]
+                {
+                    { 1, "dr. Smith", "General Practitioner" },
+                    { 2, "dr. Test", "Teeth Doctor" }
+                });
 
             migrationBuilder.InsertData(
                 table: "DoctorSchedules",
-                columns: new[] { "Id", "DayOfWeek", "DoctorId", "EndTime", "StartTime" },
+                columns: new[] { "Id", "DoctorId", "EndTime", "RRulePattern", "StartTime" },
                 values: new object[,]
                 {
-                    { 1, 1, 1, new TimeSpan(0, 12, 0, 0, 0), new TimeSpan(0, 9, 0, 0, 0) },
-                    { 2, 3, 1, new TimeSpan(0, 12, 0, 0, 0), new TimeSpan(0, 9, 0, 0, 0) },
-                    { 3, 5, 1, new TimeSpan(0, 12, 0, 0, 0), new TimeSpan(0, 9, 0, 0, 0) }
+                    { 1, 1, new TimeSpan(0, 12, 0, 0, 0), "FREQ=WEEKLY;BYDAY=MO,WE,FR", new TimeSpan(0, 9, 0, 0, 0) },
+                    { 2, 2, new TimeSpan(0, 12, 0, 0, 0), "FREQ=WEEKLY;BYDAY=TU,TH", new TimeSpan(0, 9, 0, 0, 0) }
                 });
 
             migrationBuilder.CreateIndex(

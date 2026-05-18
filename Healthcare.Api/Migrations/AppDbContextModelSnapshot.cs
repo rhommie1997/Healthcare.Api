@@ -81,6 +81,12 @@ namespace Healthcare.Api.Migrations
                             Id = 1,
                             Name = "dr. Smith",
                             Specialty = "General Practitioner"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Name = "dr. Test",
+                            Specialty = "Teeth Doctor"
                         });
                 });
 
@@ -92,14 +98,15 @@ namespace Healthcare.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("DayOfWeek")
-                        .HasColumnType("int");
-
                     b.Property<int>("DoctorId")
                         .HasColumnType("int");
 
                     b.Property<TimeSpan>("EndTime")
                         .HasColumnType("time");
+
+                    b.Property<string>("RRulePattern")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<TimeSpan>("StartTime")
                         .HasColumnType("time");
@@ -114,25 +121,17 @@ namespace Healthcare.Api.Migrations
                         new
                         {
                             Id = 1,
-                            DayOfWeek = 1,
                             DoctorId = 1,
                             EndTime = new TimeSpan(0, 12, 0, 0, 0),
+                            RRulePattern = "FREQ=WEEKLY;BYDAY=MO,WE,FR",
                             StartTime = new TimeSpan(0, 9, 0, 0, 0)
                         },
                         new
                         {
                             Id = 2,
-                            DayOfWeek = 3,
-                            DoctorId = 1,
+                            DoctorId = 2,
                             EndTime = new TimeSpan(0, 12, 0, 0, 0),
-                            StartTime = new TimeSpan(0, 9, 0, 0, 0)
-                        },
-                        new
-                        {
-                            Id = 3,
-                            DayOfWeek = 5,
-                            DoctorId = 1,
-                            EndTime = new TimeSpan(0, 12, 0, 0, 0),
+                            RRulePattern = "FREQ=WEEKLY;BYDAY=TU,TH",
                             StartTime = new TimeSpan(0, 9, 0, 0, 0)
                         });
                 });

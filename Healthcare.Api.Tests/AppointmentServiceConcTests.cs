@@ -42,7 +42,7 @@ namespace Healthcare.Api.Tests
             context.DoctorSchedules.Add(new DoctorSchedule
             {
                 DoctorId = 1,
-                DayOfWeek = DayOfWeek.Monday,
+                RRulePattern = "FREQ=WEEKLY;BYDAY=MO,WE,FR",
                 StartTime = new TimeSpan(9, 0, 0),
                 EndTime = new TimeSpan(12, 0, 0)
             });
@@ -70,7 +70,7 @@ namespace Healthcare.Api.Tests
                 .Select(_ => Task.Run(async () =>
                 {
                     using var context = GetDbContext();
-                    var service = new AppointmentService(context, GetConfig());
+                    var service = new AppointmentService(context);
 
                     return await service.CreateAppointmentAsync(request);
                 }))

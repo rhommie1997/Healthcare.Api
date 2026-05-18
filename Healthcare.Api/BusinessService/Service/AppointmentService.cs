@@ -16,22 +16,20 @@ namespace Healthcare.Api.BusinessService.Service
     public class AppointmentService : IAppointmentService
     {
         private readonly AppDbContext _context;
-        private readonly string _rrulePattern;
         private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 
-        public AppointmentService(AppDbContext context, IConfiguration configuration)
+        public AppointmentService(AppDbContext context)
         {
             _context = context;
-            _rrulePattern = configuration.GetValue<string>("DoctorSettings:WorkingRRule") ?? "";
         }
 
 
-        private bool CheckingPraktekRule(DateTimeOffset date)
+        private bool CheckingPraktekRule(DateTimeOffset date, string rRulePattern)
         {
             CalendarEvent calendarEvent = new CalendarEvent
             {
                 DtStart = new CalDateTime(date.Date),
-                RecurrenceRule = new RecurrencePattern(_rrulePattern)
+                RecurrenceRule = new RecurrencePattern(rRulePattern)
             };
 
             IEnumerable<Occurrence> occurrences = calendarEvent.GetOccurrences(
@@ -69,7 +67,20 @@ namespace Healthcare.Api.BusinessService.Service
 
         public async Task<ResponseDto> GetAvailabilityAsync(int doctorId, DateTimeOffset date, int slot)
         {
-            bool isPractice = CheckingPraktekRule(date);
+
+            DoctorSchedule? schedule = await _context.DoctorSchedules
+           .FirstOrDefaultAsync(s => s.DoctorId == doctorId);
+
+            if (schedule == null)
+            {
+                return new ResponseDto 
+                { 
+                    IsSuccess = false, 
+                    Message = AppConstants.NO_PRACTICE
+                };
+            }
+
+            bool isPractice = CheckingPraktekRule(date,schedule.RRulePattern);
             if (!isPractice)
             {
                 return new ResponseDto
@@ -78,9 +89,6 @@ namespace Healthcare.Api.BusinessService.Service
                     Message = AppConstants.NO_PRACTICE
                 };
             }
-
-            DoctorSchedule? schedule = await _context.DoctorSchedules
-            .FirstOrDefaultAsync(s => s.DoctorId == doctorId);
 
             //if (schedule == null)
             //    return new ResponseDto { IsSuccess = false, Message = "Dokter tidak praktek di hari ini." };
@@ -104,12 +112,9 @@ namespace Healthcare.Api.BusinessService.Service
     DateTimeOffset startLocal,
     DateTimeOffset endLocal)
         {
-            DayOfWeek inputDayOfWeek = startLocal.DayOfWeek;
-
             DoctorSchedule? schedule = await _context.DoctorSchedules
                 .FirstOrDefaultAsync(s =>
-                    s.DoctorId == request.DoctorId &&
-                    s.DayOfWeek == inputDayOfWeek);
+                    s.DoctorId == request.DoctorId);
 
             if (schedule == null)
             {
@@ -117,6 +122,16 @@ namespace Healthcare.Api.BusinessService.Service
                 {
                     IsSuccess = false,
                     Message = AppConstants.NO_PRACTICE
+                };
+            }
+
+            bool isPractice = CheckingPraktekRule(startLocal, schedule.RRulePattern);
+            if (!isPractice)
+            {
+                return new ResponseDto
+                {
+                    IsSuccess = false,
+                    Message = AppConstants.NO_PRACTICE // Test Case 4: Di luar hari kerja dokter
                 };
             }
 

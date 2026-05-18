@@ -4,9 +4,7 @@
     {
         public int Id { get; set; }
         public int DoctorId { get; set; }
-
-        // DayOfWeek (0=Minggu, 1=Senin, dst)
-        public DayOfWeek DayOfWeek { get; set; }
+        public string RRulePattern { get; set; } = string.Empty;
 
         // Jam mulai dan selesai operasional
         public TimeSpan StartTime { get; set; } // Contoh: 09:00:00

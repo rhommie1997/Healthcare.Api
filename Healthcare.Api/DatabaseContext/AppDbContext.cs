@@ -27,7 +27,8 @@ namespace Healthcare.Api.DatabaseContext
 
 
             modelBuilder.Entity<Doctor>().HasData(
-                new Doctor { Id = 1, Name = "dr. Smith", Specialty = "General Practitioner" }
+                new Doctor { Id = 1, Name = "dr. Smith", Specialty = "General Practitioner" },
+                new Doctor { Id = 2, Name = "dr. Test", Specialty = "Teeth Doctor" }
             );
 
             modelBuilder.Entity<DoctorSchedule>().HasData(
@@ -35,27 +36,19 @@ namespace Healthcare.Api.DatabaseContext
                 {
                     Id = 1,
                     DoctorId = 1,
-                    DayOfWeek = DayOfWeek.Monday,
+                    RRulePattern = "FREQ=WEEKLY;BYDAY=MO,WE,FR",
                     StartTime = new TimeSpan(9, 0, 0),
                     EndTime = new TimeSpan(12, 0, 0)
-                },  // Rabu
+                }, 
                 new DoctorSchedule
                 {
                     Id = 2,
-                    DoctorId = 1,
-                    DayOfWeek = DayOfWeek.Wednesday,
-                    StartTime = new TimeSpan(9, 0, 0),
-                    EndTime = new TimeSpan(12, 0, 0)
-                },
-                // Jumat
-                new DoctorSchedule
-                {
-                    Id = 3,
-                    DoctorId = 1,
-                    DayOfWeek = DayOfWeek.Friday,
+                    DoctorId = 2,
+                    RRulePattern = "FREQ=WEEKLY;BYDAY=TU,TH",
                     StartTime = new TimeSpan(9, 0, 0),
                     EndTime = new TimeSpan(12, 0, 0)
                 }
+               
             );
         }
     }

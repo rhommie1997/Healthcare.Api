@@ -22,20 +22,13 @@ public class AppointmentServiceTests
         return new AppDbContext(options);
     }
 
-    private IConfiguration GetConfig()
-    {
-        Dictionary<string, string> settings = new Dictionary<string, string> {
-            {"DoctorSettings:WorkingRRule", "FREQ=WEEKLY;BYDAY=MO,WE,FR"}
-        };
-        return new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
-    }
 
     private async Task Seeder(AppDbContext context)
     {
         context.DoctorSchedules.Add(new DoctorSchedule
         {
             DoctorId = 1,
-            DayOfWeek = DayOfWeek.Monday,
+            RRulePattern = "FREQ=WEEKLY;BYDAY=MO,WE,FR",
             StartTime = new TimeSpan(9, 0, 0),
             EndTime = new TimeSpan(12, 0, 0)
         });
@@ -46,7 +39,7 @@ public class AppointmentServiceTests
     public async Task GetAvailability_ShouldReturn6Slots_OnMonday()
     {
         AppDbContext context = GetDbContext();
-        AppointmentService service = new AppointmentService(context, GetConfig());
+        AppointmentService service = new AppointmentService(context);
 
         await Seeder(context);
 
@@ -60,12 +53,12 @@ public class AppointmentServiceTests
     public async Task CreateAppointment_ShouldSucceed_WhenNoOverlap()
     {
         AppDbContext context = GetDbContext();
-        AppointmentService service = new AppointmentService(context, GetConfig());
+        AppointmentService service = new AppointmentService(context);
 
         context.DoctorSchedules.Add(new DoctorSchedule
         {
             DoctorId = 1,
-            DayOfWeek = DayOfWeek.Monday,
+            RRulePattern = "FREQ=WEEKLY;BYDAY=MO,WE,FR",
             StartTime = new TimeSpan(9, 0, 0),
             EndTime = new TimeSpan(12, 0, 0)
         });
@@ -89,7 +82,7 @@ public class AppointmentServiceTests
     public async Task CreateAppointment_ShouldFail_WhenOverlapPersis()
     {
         AppDbContext context = GetDbContext();
-        AppointmentService service = new AppointmentService(context, GetConfig());
+        AppointmentService service = new AppointmentService(context);
 
         context.Appointments.Add(new Appointment
         {
@@ -116,12 +109,12 @@ public class AppointmentServiceTests
     public async Task CreateAppointment_ShouldFail_OutsideWorkingHours()
     {
         AppDbContext context = GetDbContext();
-        AppointmentService service = new AppointmentService(context, GetConfig());
+        AppointmentService service = new AppointmentService(context);
 
         context.DoctorSchedules.Add(new DoctorSchedule
         {
             DoctorId = 1,
-            DayOfWeek = DayOfWeek.Monday,
+            RRulePattern = "FREQ=WEEKLY;BYDAY=MO,WE,FR",
             StartTime = new TimeSpan(9, 0, 0),
             EndTime = new TimeSpan(12, 0, 0)
         });
@@ -145,7 +138,7 @@ public class AppointmentServiceTests
     public async Task CancelAppointment_ShouldSucceed_WhenBeforeCutOff()
     {
         AppDbContext context = GetDbContext();
-        AppointmentService service = new AppointmentService(context, GetConfig());
+        AppointmentService service = new AppointmentService(context);
 
         DateTimeOffset startTime = DateTimeOffset.UtcNow.AddHours(10);
         Appointment appt = new Appointment { Id = 55, StartTime = startTime };
@@ -162,7 +155,7 @@ public class AppointmentServiceTests
     public async Task CancelAppointment_ShouldFail_WhenPassingCutOff()
     {
         AppDbContext context = GetDbContext();
-        AppointmentService service = new AppointmentService(context, GetConfig());
+        AppointmentService service = new AppointmentService(context);
 
         DateTimeOffset startTime = DateTimeOffset.UtcNow.AddHours(1);
         context.Appointments.Add(new Appointment { Id = 1, StartTime = startTime });
